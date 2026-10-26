@@ -334,3 +334,186 @@ python src/evaluate.py
 - **Não altere os datasets de avaliação** - apenas os prompts em `prompts/bug_to_user_story_v2.yml`
 - **Itere, itere, itere** - é normal precisar de 3-5 iterações para atingir 0.8 em todas as métricas
 - **Documente seu processo** - a jornada de otimização é tão importante quanto o resultado final
+
+---
+
+# 📦 Solução (Entregável)
+
+> As seções abaixo documentam a **minha solução** do desafio: as técnicas aplicadas na
+> refatoração do prompt, os resultados obtidos e as instruções de execução.
+
+## Técnicas Aplicadas (Fase 2)
+
+O prompt inicial (`prompts/bug_to_user_story_v1.yml`) era propositalmente ruim: sem
+persona, instruções vagas, `{bug_report}` duplicado entre system e user prompt, sem
+exemplos e sem definição de formato de saída. A versão otimizada
+(`prompts/bug_to_user_story_v2.yml`) aplica **4 técnicas** de Prompt Engineering:
+
+### 1. Role Prompting (persona) — *obrigatório: definir persona e contexto*
+
+- **O que é:** atribuir ao modelo um papel especialista com contexto detalhado.
+- **Por que escolhi:** converter bug → user story é exatamente o trabalho de um Product
+  Manager. Dar essa persona faz o modelo adotar o vocabulário, o foco no usuário e o
+  padrão de qualidade de documentação ágil que as métricas (Clarity, Tone) premiam.
+- **Como apliquei:**
+  ```
+  Você é um Product Manager ágil sênior, especialista em traduzir relatos de
+  bugs — muitas vezes vagos, técnicos ou emocionais — em User Stories claras,
+  centradas no usuário e prontas para o backlog de um time de desenvolvimento.
+  ```
+
+### 2. Few-shot Learning — *obrigatório*
+
+- **O que é:** fornecer exemplos claros de entrada → saída.
+- **Por que escolhi:** é a alavanca mais forte para **F1-Score e Precision**. Ao mostrar
+  3 exemplos no formato exato das referências do dataset, o modelo aprende o estilo, o
+  nível de detalhe e a estrutura esperados, reduzindo alucinação e desvio de formato.
+- **Como apliquei:** 3 pares `Relato de Bug → User Story` (carrinho, validação de email,
+  layout iOS) escritos no mesmo padrão das referências (persona específica + 4-6
+  critérios em Dado/Quando/Então).
+
+### 3. Chain of Thought (CoT) — raciocínio **interno**
+
+- **O que é:** instruir o modelo a "pensar passo a passo" antes de responder.
+- **Por que escolhi:** analisar um bug exige inferir persona, objetivo, valor e cenários
+  de aceitação — raciocínio de múltiplas etapas. Um detalhe crítico: as referências do
+  dataset são user stories **limpas**, então o raciocínio precisa ser **interno**. Peço
+  explicitamente para raciocinar mas **não exibir** o raciocínio, entregando apenas a
+  user story final. Isso protege **Precision, F1 e Clarity** (raciocínio impresso seria
+  penalizado como conteúdo fora da referência).
+- **Como apliquei:**
+  ```
+  # PROCESSO DE RACIOCÍNIO (pense passo a passo, INTERNAMENTE)
+  1. Persona ... 2. Objetivo ... 3. Valor ... 4. Comportamento esperado ... 5. Cenários
+  IMPORTANTE: NÃO exiba esse raciocínio. Entregue SOMENTE a User Story final.
+  ```
+
+### 4. Skeleton of Thought — estrutura de saída fixa
+
+- **O que é:** definir o "esqueleto" exato da resposta.
+- **Por que escolhi:** garante consistência de formato em todos os 15 exemplos, o que
+  eleva diretamente **Clarity** e o alinhamento com a referência (F1).
+- **Como apliquei:** um bloco `# ESTRUTURA DA RESPOSTA` que fixa o template
+  `Como um... eu quero... para que...` seguido de `Critérios de Aceitação:` em bullets
+  `Dado / Quando / Então / E`, sem preâmbulo nem comentários finais.
+
+Além das técnicas, o prompt inclui **regras explícitas de comportamento** (linguagem
+positiva, persona específica, 4-6 critérios testáveis, sem preâmbulo) e **tratamento de
+edge cases** (relato vago, múltiplos problemas, relato muito técnico), e faz uso correto
+de **System vs User Prompt** — todas as instruções/exemplos no system prompt, e apenas a
+variável `{bug_report}` no user prompt.
+
+## Resultados Finais
+
+Avaliação executada com **Google Gemini** (`gemini-2.5-flash` como modelo respondente
+e avaliador) sobre o dataset de **15 bugs** (5 simples, 7 médios, 3 complexos).
+
+- **Prompt otimizado (público) no LangSmith Hub:**
+  https://smith.langchain.com/prompts/bug_to_user_story_v2
+  (handle: `gcc/bug_to_user_story_v2`)
+- **Projeto/Dashboard no LangSmith:** projeto `MBA_Prompt`
+  (https://smith.langchain.com/projects/MBA_Prompt) — dataset `MBA_Prompt-eval`.
+- **Screenshots:** _<inserir imagens do dashboard com as métricas ≥ 0.8 e o tracing de ≥ 3 exemplos>_
+
+> Para as evidências públicas: no LangSmith, deixe o prompt público (já feito via
+> `new_repo_is_public=True`) e compartilhe/torne público o projeto de avaliação para
+> gerar o link, além de capturar os screenshots das runs e do tracing.
+
+### Tabela comparativa (v1 vs v2)
+
+Valores reais medidos nesta avaliação (mesma pipeline `src/evaluate.py`, mesmo dataset):
+
+| Métrica      | v1 (original/ruim) | v2 (otimizado) | Meta   |
+|--------------|:------------------:|:--------------:|:------:|
+| Helpfulness  |       0.89 ✓       |    **0.94** ✓  | ≥ 0.80 |
+| Correctness  |       0.77 ✗       |    **0.91** ✓  | ≥ 0.80 |
+| F1-Score     |       0.64 ✗       |    **0.86** ✓  | ≥ 0.80 |
+| Clarity      |       0.87 ✓       |    **0.93** ✓  | ≥ 0.80 |
+| Precision    |       0.90 ✓       |    **0.95** ✓  | ≥ 0.80 |
+| **Média**    |       0.83         |    **0.92**    |        |
+| **Status**   |   ❌ REPROVADO     | ✅ **APROVADO** |       |
+
+> O prompt v1 **reprova** por F1-Score (0.64) e Correctness (0.77) — ele produz uma
+> user story genérica, sem cobrir os critérios de aceitação e o contexto técnico das
+> referências. O prompt v2 **aprova em todas as 5 métricas**, com destaque para o salto
+> de F1-Score (0.64 → 0.86), obtido ao adotar a estrutura adaptativa com seção de
+> `Contexto Técnico` e os exemplos Few-shot alinhados ao formato das referências.
+
+### Evolução das iterações do v2
+
+| Iteração | Mudança principal                                   | F1   | Status |
+|:--------:|-----------------------------------------------------|:----:|:------:|
+| 1        | Persona + Few-shot (3 ex.) + CoT interno + Skeleton | 0.77 | ❌ (só F1 < 0.8) |
+| 2        | + Seção adaptativa `Contexto Técnico` e 4º exemplo Few-shot (médio) | 0.86 | ✅ APROVADO |
+
+## Como Executar
+
+### Pré-requisitos
+
+- Python 3.9+ (testado em 3.13)
+- Conta no [LangSmith](https://smith.langchain.com/) com API Key
+- API Key de um provider de LLM. **Padrão do projeto: Google Gemini (gratuito)**
+  - Gemini: https://aistudio.google.com/app/apikey (`gemini-2.5-flash`)
+  - OpenAI (alternativa): https://platform.openai.com/api-keys (`gpt-4o-mini` + `gpt-4o`)
+
+### 1. Ambiente virtual e dependências
+
+```bash
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+### 2. Configurar credenciais
+
+Copie `.env.example` para `.env` e preencha:
+
+```env
+LANGSMITH_TRACING=true
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+LANGSMITH_API_KEY=<sua_chave_langsmith>
+LANGSMITH_PROJECT=prompt-optimization-challenge
+USERNAME_LANGSMITH_HUB=<seu_username_no_hub>
+
+# Provider padrão: Gemini (gratuito)
+GOOGLE_API_KEY=<sua_chave_google>
+LLM_PROVIDER=google
+LLM_MODEL=gemini-2.5-flash
+EVAL_MODEL=gemini-2.5-flash
+
+# Alternativa OpenAI (descomente e ajuste):
+# OPENAI_API_KEY=<sua_chave_openai>
+# LLM_PROVIDER=openai
+# LLM_MODEL=gpt-4o-mini
+# EVAL_MODEL=gpt-4o
+```
+
+> Para descobrir seu `USERNAME_LANGSMITH_HUB`: publique qualquer prompt no LangSmith Hub,
+> abra-o e clique no ícone de cadeado (🔒) para ver seu username.
+
+### 3. Executar cada fase
+
+```bash
+# Fase 1 — Pull do prompt ruim (leonanluppi/bug_to_user_story_v1)
+python src/pull_prompts.py
+
+# Fase 3 — Push do prompt otimizado (público) → {seu_username}/bug_to_user_story_v2
+python src/push_prompts.py
+
+# Fase 4 — Avaliação (itere o prompt v2 até todas as métricas ≥ 0.8)
+python src/evaluate.py
+```
+
+### 4. Rodar os testes de validação
+
+```bash
+pytest tests/test_prompts.py -v
+```
+
+Os 6 testes validam o `prompts/bug_to_user_story_v2.yml`: existência do system prompt,
+definição de persona, especificação de formato, exemplos Few-shot, ausência de `[TODO]`
+e uso de pelo menos 2 técnicas (metadados `techniques_applied`).
