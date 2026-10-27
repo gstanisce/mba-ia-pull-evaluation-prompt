@@ -59,7 +59,7 @@ from langchain_core.tracers.langchain import wait_for_all_tracers
 
 import evaluate as ev  # reutiliza get_llm, pull_prompt_from_langsmith, create_evaluation_dataset
 from metrics import evaluate_f1_score, evaluate_clarity, evaluate_precision
-from utils import check_env_vars, print_section_header, format_score
+from utils import check_env_vars, print_section_header, format_score, content_to_text
 
 # Métricas base que também gravaremos como feedback.
 BASE_KEYS = ("f1_score", "clarity", "precision")
@@ -103,7 +103,7 @@ def evaluate_and_log(prompt_name: str, dataset_name: str, client: Client, limit:
         # Garante que o run foi enviado ao LangSmith antes de anexar feedback.
         wait_for_all_tracers()
         run_id = cb.traced_runs[0].id if cb.traced_runs else None
-        answer = response.content
+        answer = content_to_text(response.content)
 
         f1 = evaluate_f1_score(question, answer, reference)
         clarity = evaluate_clarity(question, answer, reference)
@@ -138,7 +138,8 @@ def main() -> int:
 
     provider = os.getenv("LLM_PROVIDER", "openai")
     required = ["LANGSMITH_API_KEY", "LLM_PROVIDER"]
-    required.append("OPENAI_API_KEY" if provider == "openai" else "GOOGLE_API_KEY")
+    key_by_provider = {"openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
+    required.append(key_by_provider.get(provider, "GOOGLE_API_KEY"))
     if not check_env_vars(required):
         return 1
 

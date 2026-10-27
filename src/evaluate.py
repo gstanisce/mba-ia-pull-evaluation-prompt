@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 from langsmith import Client
 from langchain import hub
 from langchain_core.prompts import ChatPromptTemplate
-from utils import check_env_vars, format_score, print_section_header, get_llm as get_configured_llm
+from utils import check_env_vars, format_score, print_section_header, get_llm as get_configured_llm, content_to_text
 from metrics import evaluate_f1_score, evaluate_clarity, evaluate_precision
 
 load_dotenv()
@@ -152,7 +152,7 @@ def evaluate_prompt_on_example(
         chain = prompt_template | llm
 
         response = chain.invoke(inputs)
-        answer = response.content
+        answer = content_to_text(response.content)
 
         reference = outputs.get("reference", "") if isinstance(outputs, dict) else ""
 
@@ -290,6 +290,8 @@ def main():
         required_vars.append("OPENAI_API_KEY")
     elif provider in ["google", "gemini"]:
         required_vars.append("GOOGLE_API_KEY")
+    elif provider == "anthropic":
+        required_vars.append("ANTHROPIC_API_KEY")
 
     if not check_env_vars(required_vars):
         return 1
