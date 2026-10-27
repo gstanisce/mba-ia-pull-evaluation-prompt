@@ -74,6 +74,13 @@ bug_to_user_story_v2:
       códigos de erro, métricas) — nos critérios e/ou na seção Contexto Técnico.
     - Seja conciso: sem introduções ("Aqui está..."), sem explicações fora da
       estrutura, sem metadados. Apenas a User Story e suas seções.
+    - NÃO escreva rótulos antes da User Story (nada de "User Story:" ou "Resposta:").
+      A primeira linha da resposta é "Como um...".
+    - O Contexto Técnico tem no máximo 4 linhas curtas e NÃO repete os critérios
+      de aceitação.
+    - Nos critérios, use os números, códigos HTTP, prazos e nomes de campo do relato
+      (ex.: "HTTP 403", "em até 30 segundos"). Evite termos vagos como "corretamente",
+      "adequadamente" ou "sem problemas".
     - Não invente informações que não estejam sugeridas pelo relato.
 
     # TRATAMENTO DE EDGE CASES
@@ -88,44 +95,29 @@ bug_to_user_story_v2:
     # EXEMPLOS (Few-shot Learning)
 
     Exemplo 1
-    Relato de Bug: Botão de adicionar ao carrinho não funciona no produto ID 1234.
-    User Story:
-    Como um cliente navegando na loja, eu quero adicionar produtos ao meu carrinho de compras, para que eu possa continuar comprando e finalizar minha compra depois.
+    Relato de Bug: Botão "Salvar" do perfil não atualiza o nome exibido no menu lateral até o usuário recarregar a página.
+    Como um usuário que editou meus dados, eu quero que o nome atualizado apareça imediatamente no menu, para que eu confirme que a alteração foi salva.
 
     Critérios de Aceitação:
-    - Dado que estou visualizando um produto
-    - Quando clico no botão "Adicionar ao Carrinho"
-    - Então o produto deve ser adicionado ao carrinho
-    - E devo ver uma confirmação visual
-    - E o contador do carrinho deve ser atualizado
+    - Dado que alterei meu nome na tela de perfil
+    - Quando clico em "Salvar"
+    - Então o nome no menu lateral deve ser atualizado sem recarregar a página
+    - E devo ver uma confirmação de que os dados foram salvos
+    - E o novo nome deve aparecer exatamente como foi digitado
 
     Exemplo 2
-    Relato de Bug: Campo de email aceita texto sem @, permitindo cadastros inválidos.
-    User Story:
-    Como um usuário criando uma conta, eu quero que o sistema valide meu email corretamente, para que eu não insira um endereço inválido por engano.
+    Relato de Bug: Link de redefinição de senha expira em 5 minutos, mas o e-mail informa validade de 24 horas.
+    Como um usuário que esqueceu a senha, eu quero que o link de redefinição respeite o prazo informado no e-mail, para que eu consiga trocar minha senha dentro do prazo indicado.
 
     Critérios de Aceitação:
-    - Dado que estou no formulário de cadastro
-    - Quando digito um email sem o caractere @
-    - Então devo ver uma mensagem de erro
-    - E não devo conseguir prosseguir com o cadastro
-    - E a mensagem deve explicar o formato correto
+    - Dado que solicitei a redefinição de senha
+    - Quando acesso o link recebido em até 24 horas
+    - Então devo conseguir definir uma nova senha
+    - E o link deve continuar válido durante todo o prazo informado no e-mail
+    - E após 24 horas o link deve ser recusado com uma mensagem explicando que expirou
 
-    Exemplo 3
-    Relato de Bug: No iOS, ao girar o celular para landscape, o layout da tela de perfil fica quebrado.
-    User Story:
-    Como um usuário de iOS, eu quero visualizar minha tela de perfil em modo paisagem, para que eu possa usar o app em qualquer orientação sem problemas visuais.
-
-    Critérios de Aceitação:
-    - Dado que estou na tela de perfil no iOS
-    - Quando giro o dispositivo para modo paisagem
-    - Então o layout deve se adaptar corretamente
-    - E todos os elementos devem permanecer visíveis e alinhados
-    - E não deve haver sobreposição de componentes
-
-    Exemplo 4 (relato com artefatos técnicos — inclui Contexto Técnico)
+    Exemplo 3 (relato com artefatos técnicos — inclui Contexto Técnico)
     Relato de Bug: Login falha com erro 401 mesmo com a senha correta. Os logs mostram "token expired" ao chamar POST /api/auth/refresh após 15 minutos de inatividade.
-    User Story:
     Como um usuário autenticado, eu quero permanecer logado enquanto uso o sistema, para que eu não seja desconectado inesperadamente durante meu trabalho.
 
     Critérios de Aceitação:
@@ -149,8 +141,6 @@ bug_to_user_story_v2:
   user_prompt: |
     Relato de Bug:
     {bug_report}
-
-    User Story:
 
   # Metadados
   version: "v2"

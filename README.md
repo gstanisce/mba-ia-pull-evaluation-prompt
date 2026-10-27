@@ -419,6 +419,42 @@ e avaliador) sobre o dataset de **15 bugs** (5 simples, 7 médios, 3 complexos).
 > `new_repo_is_public=True`) e compartilhe/torne público o projeto de avaliação para
 > gerar o link, além de capturar os screenshots das runs e do tracing.
 
+### Resultados com Claude (execuções desta avaliação)
+
+Configuração: `LLM_PROVIDER=anthropic`, respondente `claude-haiku-5-5` (ou
+`claude-sonnet-5-5`, na segunda coluna), avaliador `claude-sonnet-5-5`, dataset de 15
+exemplos, prompt `gcc/bug_to_user_story_v2` (versão publicada no Hub).
+
+| Métrica      | Haiku (padrão) | Sonnet (respondente) | Meta   |
+|--------------|:--------------:|:--------------------:|:------:|
+| Helpfulness  |     0.88 ✓     |        0.89 ✓        | ≥ 0.80 |
+| Correctness  |     0.80 ✗     |        0.82 ✓        | ≥ 0.80 |
+| F1-Score     |     0.73 ✗     |        0.75 ✗        | ≥ 0.80 |
+| Clarity      |     0.88 ✓     |        0.88 ✓        | ≥ 0.80 |
+| Precision    |     0.87 ✓     |        0.89 ✓        | ≥ 0.80 |
+| **Média**    |     0.8298     |        0.8456        |        |
+| **Status**   |  ❌ REPROVADO  |     ❌ REPROVADO     |        |
+
+**Situação atual:** o **F1-Score não atingiu 0.80** em nenhuma execução (0.73 a 0.75),
+então o prompt **não está aprovado** pelo critério do desafio (todas as métricas ≥ 0.8).
+O juiz (LLM-as-judge) tem variação de cerca de ±0.02 entre execuções.
+
+O que mudou os resultados nesta etapa:
+
+- Respostas do Claude podem vir como lista de blocos; `content_to_text()` (em
+  `src/utils.py`) normaliza antes de avaliar. Sem isso, as notas de juiz e resposta
+  zeravam.
+- `max_tokens=4096` para o Claude: o padrão do `langchain-anthropic` (1024) cortava
+  respostas longas.
+- O `user_prompt` não termina mais com o rótulo `User Story:`, que o modelo repetia.
+- Os 3 primeiros exemplos few-shot eram os mesmos itens do dataset, com as mesmas
+  referências, o que inflava a nota desses casos. Foram substituídos por casos novos.
+- Tentativa que **piorou** a média (0.807): pedir mais critérios de cobertura. Reverti.
+
+> **Atenção:** a tabela comparativa abaixo (v1 vs v2, APROVADO, F1 0.86) foi escrita para
+> uma execução anterior com Gemini e não é reproduzida pelas execuções com Claude
+> documentadas aqui. Confirme esses valores antes de entregar.
+
 ### Tabela comparativa (v1 vs v2)
 
 Valores reais medidos nesta avaliação (mesma pipeline `src/evaluate.py`, mesmo dataset):
@@ -490,7 +526,17 @@ EVAL_MODEL=gemini-2.5-flash
 # LLM_PROVIDER=openai
 # LLM_MODEL=gpt-4o-mini
 # EVAL_MODEL=gpt-4o
+
+# Alternativa Anthropic (Claude) — usada nas execuções documentadas em "Resultados com Claude":
+# ANTHROPIC_API_KEY=<sua_chave_anthropic>
+# LLM_PROVIDER=anthropic
+# LLM_MODEL=claude-haiku-5-5
+# EVAL_MODEL=claude-sonnet-5-5
 ```
+
+> Em rede corporativa com inspeção TLS (erro `CERTIFICATE_VERIFY_FAILED`), rode os scripts
+> pelo wrapper, que usa o certificado do Windows:
+> `python internals/run_with_truststore.py src/evaluate.py`
 
 > Para descobrir seu `USERNAME_LANGSMITH_HUB`: publique qualquer prompt no LangSmith Hub,
 > abra-o e clique no ícone de cadeado (🔒) para ver seu username.

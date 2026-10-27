@@ -173,6 +173,34 @@ def extract_json_from_response(response_text: str) -> Optional[Dict[str, Any]]:
     return None
 
 
+def content_to_text(content: Any) -> str:
+    """
+    Normaliza response.content de um LLM para texto.
+
+    Alguns providers (ex.: Anthropic/Claude) devolvem uma lista de blocos
+    em vez de string. Mantém só os blocos de texto.
+
+    Args:
+        content: response.content retornado pelo LLM
+
+    Returns:
+        Texto da resposta
+    """
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get('type') == 'text':
+                parts.append(block.get('text', ''))
+        return ''.join(parts)
+
+    return str(content)
+
+
 def get_llm(model: Optional[str] = None, temperature: float = 0.0):
     """
     Retorna uma instância de LLM configurada baseada no provider.
@@ -222,10 +250,28 @@ def get_llm(model: Optional[str] = None, temperature: float = 0.0):
             google_api_key=api_key
         )
 
+    elif provider == 'anthropic':
+        from langchain_anthropic import ChatAnthropic
+
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if not api_key:
+            raise ValueError(
+                "ANTHROPIC_API_KEY não configurada no .env\n"
+                "Obtenha uma chave em: https://console.anthropic.com/settings/keys"
+            )
+
+        # claude-haiku-5-5 / claude-sonnet-5-5 rejeitam o parâmetro temperature (400).
+        # max_tokens padrão do langchain-anthropic é 1024 e cortava respostas longas.
+        return ChatAnthropic(
+            model=model_name,
+            max_tokens=4096,
+            api_key=api_key
+        )
+
     else:
         raise ValueError(
             f"Provider '{provider}' não suportado.\n"
-            f"Use 'openai' ou 'google' na variável LLM_PROVIDER do .env"
+            f"Use 'openai', 'google' ou 'anthropic' na variável LLM_PROVIDER do .env"
         )
 
 
